@@ -1,18 +1,14 @@
 # ----------------------------------------------------------------------
-# Step 1: Import all necessary modules and create Flask app
+# Step 1: Import all necessary modules and create Flask+PyMongo app
 # ---------------------------------------------------------------------- 
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, redirect
+from flask_pymongo import PyMongo
 import pymongo
+import scrape_mars
+
 
 app = Flask(__name__)
-
-# ----------------------------------------------------------------------
-# Step 2: Set up Pymongo DB connection
-# ---------------------------------------------------------------------- 
-conn = "mongodb://localhost:27017"
-client = pymongo.MongoClient(conn)
-db = client.mars
-collection = db.mars
+mongo = PyMongo(app)
 
 # ----------------------------------------------------------------------
 # Step 3: Set up routes
@@ -21,14 +17,26 @@ collection = db.mars
 # Route 1: Scrape and store data in MongoDB
 @app.route("/")
 def index():
-    mars_data = db.collection.find()
-    return render_template("index.html", mars_data=mars_data)
+    try:
+        mars_data = mongo.db.mars.find_one()
+        print("happy panda")
+    except:
+        mongo.db.mars.insert_one(scrape_mars.scrape())
+        mars_data = mongo.db.mars.find_one()
+        print("exception whee")
+    return render_template("index.html", mars=mars_data)
     
 # Route 2: Scrape and store data in MongoDB
 @app.route("/scrape")
 def scrape():
-    import scrape_mars as mars
-    db.collection.insert(mars.scrape())
+    try:
+        mongo.db.mars.find_one()
+        mongo.db.mars.delete_one()
+        mongo.db.mars.insert_one(scrape_mars.scrape())
+    except:
+        mongo.db.mars.insert_one(scrape_mars.scrape())
+    
+    return redirect("http://localhost:5000/", code=302)
 
 if __name__ == "__main__":
     app.run(debug=True)
